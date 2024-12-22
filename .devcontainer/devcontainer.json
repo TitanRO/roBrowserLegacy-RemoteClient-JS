@@ -1,0 +1,44 @@
+{
+	"name": "roBrowser nodejs GRF host development environment",
+
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+
+	"runArgs": ["--init"],
+
+	"mounts": [ "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind" ],
+
+	"customizations": {
+		"vscode": {
+			// Add the IDs of extensions you want installed when the container is created.
+			"extensions": [
+				"eamodio.gitlens",
+				"ms-azuretools.vscode-docker"
+			],
+			// Set *default* container specific settings.json values on container create.
+			"settings": {
+				"files.insertFinalNewline": true
+			}
+		}
+	},
+
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+
+	// Use 'postCreateCommand' to run commands after the container is created.
+	// "postCreateCommand": {},
+
+	// Use 'postStartCommand' to run commands when the container is started.
+	"postStartCommand": "doctl auth init --access-token $DO_TOKEN && doctl kubernetes cluster kubeconfig save e15266d8-76a6-4aa1-9529-5df961097936",
+
+	// Comment out connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
+	"remoteUser": "devuser",
+
+	"overrideCommand": false,
+
+	"remoteEnv": {
+		"DO_TOKEN": "${localEnv:DEVCONTAINER_DO_TOKEN}",
+		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
+	}
+}
