@@ -17,4 +17,5 @@ COPY data /usr/app/data/
 COPY resources /usr/app/resources/
 COPY System /usr/app/System/
 
+ENV PORT 80
 CMD ["node", "index.js"]
