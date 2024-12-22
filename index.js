@@ -8,7 +8,7 @@ const debugMiddleware = require('./src/middlewares/debugMiddleware'); // adjust 
 
 // CORS setup. change example.com to your roBrowser ip/domain and http://localhost:3338 (if necessary) to the domain/port where your client is running
 const corsOptions = {
-  origin: ['https://example.com', 'http://localhost:3338'],
+  origin: ['https://test.titanro.net', 'https://play.titanro.net'],
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
   credentials: true,
 };
