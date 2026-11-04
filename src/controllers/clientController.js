@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const Grf = require('./grfController');
 const configs = require('../config/configs');
-const { normalizeEncodingPath } = require('@chicowall/grf-loader');
+const iconv = require('iconv-lite');
 
 // Folders a client may request files from (the volume-mounted client resources).
 const RESOURCE_DIRS = ['data', 'BGM', 'System', 'AI', 'resources'];
@@ -47,18 +47,27 @@ const Client = {
 
   async getFile(filePath) {
     // Korean names may arrive as real Korean (data/texture/유저인터페이스/...) or the way roBrowser sends them:
-    // CP949 bytes read as Latin-1 (data/texture/À¯ÀúÀÎÅÍÆäÀÌ½º/...). The GRF index holds real Korean (grf-loader
-    // decodes names as CP949), so look up the Korean form first and fall back to the path as requested.
-    const korean = normalizeEncodingPath(filePath);
+    // CP949 bytes read as Latin-1 (data/texture/À¯ÀúÀÎÅÍÆäÀÌ½º/..., data/sprite/.../¿©/4_¿©.act). The GRF index holds
+    // real Korean (grf-loader decodes names as CP949), so look up the Korean form first and fall back to the path as
+    // requested.
+    const korean = toKorean(filePath);
     const candidates = [korean, filePath].filter((p, i, all) => all.indexOf(p) === i).map(p => this.resolveResource(p));
     if (candidates.includes(null)) {
       return null;
     }
 
-    // Already extracted to the data folder?
+    // Loose files (System/, AI/, BGM/, data/ extracts). Exact name first, then case-insensitively: the files come
+    // from a Windows client install where names like iteminfo_true.lub / OngoingQuestInfoList_True.lub don't match
+    // the case the client asks for (itemInfo_true.lub, OngoingQuestInfoList_true.lub). GRF lookups already ignore case.
     for (const { localPath } of candidates) {
-      if (fs.existsSync(localPath)) {
+      if (isFile(localPath)) {
         return fs.readFileSync(localPath);
+      }
+    }
+    for (const { localPath } of candidates) {
+      const found = findCaseInsensitive(localPath);
+      if (found) {
+        return fs.readFileSync(found);
       }
     }
 
@@ -119,6 +128,52 @@ const Client = {
     return Array.from(matchingFiles);
   }
 };
+
+// roBrowser-style mojibake -> Korean, per path segment: a segment made only of Latin-1 characters with at least one
+// non-ASCII one is re-read as CP949 bytes; segments that aren't valid CP949 (e.g. "café") and real Korean/ASCII are
+// left alone. (grf-loader's isMojibake is ratio-based and misses mostly-ASCII names such as "4_¿©.act".)
+function toKorean(filePath) {
+  return filePath
+    .split('/')
+    .map(segment => {
+      if (!/[\x80-\xff]/.test(segment) || /[^\x00-\xff]/.test(segment)) {
+        return segment;
+      }
+      const decoded = iconv.decode(Buffer.from(segment, 'latin1'), 'cp949');
+      return decoded.includes('\ufffd') ? segment : decoded;
+    })
+    .join('/');
+}
+
+// Resolve a path under the app root ignoring case, one segment at a time (only descends into entries that exist,
+// so it can't leave the folders resolveResource allowed). Returns the real path, or null.
+function findCaseInsensitive(localPath) {
+  const appRoot = path.resolve(__dirname, '..', '..');
+  let dir = appRoot;
+  for (const segment of path.relative(appRoot, localPath).split(path.sep)) {
+    let entries;
+    try {
+      entries = fs.readdirSync(dir);
+    } catch (_e) {
+      return null;
+    }
+    const wanted = segment.toLowerCase();
+    const match = entries.find(e => e.toLowerCase() === wanted);
+    if (!match) {
+      return null;
+    }
+    dir = path.join(dir, match);
+  }
+  return isFile(dir) ? dir : null;
+}
+
+function isFile(p) {
+  try {
+    return fs.statSync(p).isFile();
+  } catch (_e) {
+    return false;
+  }
+}
 
 function parseIni(data) {
   const regex = {
