@@ -7,7 +7,11 @@ FROM node:24.22.2-slim AS node
 WORKDIR /usr/app
 
 COPY package*.json ./
-RUN npm install
+# npm/npx/corepack aren't used at runtime; dropping them removes the image's largest bundled JS dependency tree.
+RUN npm install --omit=dev --no-audit --no-fund \
+ && npm cache clean --force \
+ && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+           /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 
 COPY ./index.js ./
 COPY src /usr/app/src/
@@ -16,5 +20,6 @@ COPY src /usr/app/src/
 # are not baked in: sysops mounts them from the NFS share prod-season/grfhost. These are the mount points.
 RUN mkdir -p AI BGM data resources System
 
-ENV PORT 80
+# production: Express omits stack traces from error responses.
+ENV NODE_ENV=production PORT=80
 CMD ["node", "index.js"]

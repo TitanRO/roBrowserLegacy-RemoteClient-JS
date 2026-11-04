@@ -1,0 +1,13 @@
+# The image only needs package*.json, index.js and src/ (see Dockerfile). Client resources are mounted from NFS.
+.git
+.github
+.devcontainer
+.tekton
+node_modules
+AI
+BGM
+data
+resources
+System
+*.md
+test-grf.js
