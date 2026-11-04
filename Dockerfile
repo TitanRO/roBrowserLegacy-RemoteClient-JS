@@ -2,7 +2,7 @@
 # Normally built by Tekton Pipelines-as-Code (.tekton/push.yaml) on pushes to main; titanro-ci[bot] pins the digest in
 # TitanRO/sysops argo/prod-season/grfhost, and Argo CD deploys it. The line above is the manual fallback.
 
-FROM node:20.10.0 AS node
+FROM node:24.22.2-slim AS node
 
 WORKDIR /usr/app
 
