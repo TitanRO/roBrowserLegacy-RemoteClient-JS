@@ -21,7 +21,7 @@ spec:
     - {name: git-revision, value: "{{ revision }}"}
     - {name: context, value: .}
     - {name: dockerfile, value: Dockerfile}
-    - {name: image, value: registry.digitalocean.com/titanro-docr/grfhost}
+    - {name: image, value: registry.digitalocean.com/titanro-nyc/grfhost}
     - {name: image-name, value: grfhost}
     - {name: sysops-path, value: "argo/prod-season/grfhost"}
   taskRunTemplate:
