@@ -8,7 +8,8 @@ WORKDIR /usr/app
 
 COPY package*.json ./
 # npm/npx/corepack aren't used at runtime; dropping them removes the image's largest bundled JS dependency tree.
-RUN npm install --omit=dev --no-audit --no-fund \
+# Install exactly the versions in package-lock.json (fails if it doesn't match package.json).
+RUN npm ci --omit=dev --no-audit --no-fund \
  && npm cache clean --force \
  && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
            /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
