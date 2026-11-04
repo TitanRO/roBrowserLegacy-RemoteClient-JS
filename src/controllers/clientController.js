@@ -3,6 +3,9 @@ const path = require('path');
 const Grf = require('./grfController');
 const configs = require('../config/configs');
 
+// Folders a client may request files from (the volume-mounted client resources).
+const RESOURCE_DIRS = ['data', 'BGM', 'System', 'AI', 'resources'];
+
 const Client = {
   path: '',
   data_ini: '',
@@ -29,9 +32,16 @@ const Client = {
   },
 
   async getFile(filePath) {
+    // Only serve (and auto-extract into) the client resource folders: resolve the path and refuse anything that
+    // leaves them (e.g. URL-encoded ../ segments), which used to allow reading or writing any file in the container.
+    const appRoot = path.resolve(__dirname, '..', '..');
+    const localPath = path.resolve(appRoot, filePath);
+    const rel = path.relative(appRoot, localPath);
+    if (!rel || rel.startsWith('..') || path.isAbsolute(rel) || !RESOURCE_DIRS.includes(rel.split(path.sep)[0])) {
+      return null;
+    }
     // Converter barras para barras invertidas
-    const grfFilePath = filePath.replace(/\//g, '\\');
-    let localPath = path.join(__dirname, '..', '..', filePath);
+    const grfFilePath = rel.split(path.sep).join('\\');
 
     // Verificar se o arquivo já existe na pasta de dados
     if (fs.existsSync(localPath)) {

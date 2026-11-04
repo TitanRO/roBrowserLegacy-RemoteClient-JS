@@ -12,11 +12,9 @@ RUN npm install
 COPY ./index.js ./
 COPY src /usr/app/src/
 
-COPY AI /usr/app/AI/
-COPY BGM /usr/app/BGM/
-COPY data /usr/app/data/
-COPY resources /usr/app/resources/
-COPY System /usr/app/System/
+# Client resources (GRF archives + TDATA.INI in resources/, loose files in data/ BGM/ System/ AI/) are git-ignored and
+# are not baked in: sysops mounts them from the NFS share prod-season/grfhost. These are the mount points.
+RUN mkdir -p AI BGM data resources System
 
 ENV PORT 80
 CMD ["node", "index.js"]
