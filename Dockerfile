@@ -18,9 +18,13 @@ COPY ./index.js ./
 COPY src /usr/app/src/
 
 # Client resources (GRF archives + TDATA.INI in resources/, loose files in data/ BGM/ System/ AI/) are git-ignored and
-# are not baked in: sysops mounts them from the NFS share prod-season/grfhost. These are the mount points.
-RUN mkdir -p AI BGM data resources System
+# are not baked in: sysops mounts them from the NFS share prod-season/grfhost. These are the mount points. grfhost
+# writes the files it extracts from the GRFs into data/, so that one belongs to the runtime user.
+RUN mkdir -p AI BGM data resources System && chown node:node data
 
+# Runs as the image's unprivileged node user (uid 1000), so it listens on 8080 rather than 80.
 # production: Express omits stack traces from error responses.
-ENV NODE_ENV=production PORT=80
+ENV NODE_ENV=production PORT=8080
+USER node
+EXPOSE 8080
 CMD ["node", "index.js"]
