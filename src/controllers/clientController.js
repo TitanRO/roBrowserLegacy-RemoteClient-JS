@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const Grf = require('./grfController');
 const configs = require('../config/configs');
+const { normalizeEncodingPath } = require('@chicowall/grf-loader');
 
 // Folders a client may request files from (the volume-mounted client resources).
 const RESOURCE_DIRS = ['data', 'BGM', 'System', 'AI', 'resources'];
@@ -23,7 +24,8 @@ const Client = {
     const dataIniContent = fs.readFileSync(this.data_ini, 'utf-8');
     const dataIni = parseIni(dataIniContent);
     this.grfs = await Promise.all(
-      dataIni.Data.map(async grfPath => {
+      // DATA.INI keys start at 1, so the parsed array has holes; skip them.
+      dataIni.Data.filter(Boolean).map(async grfPath => {
         const grf = new Grf(path.join(__dirname, '..', '..', configs.CLIENT_RESPATH, grfPath));
         await grf.load();
         return grf;
@@ -31,40 +33,47 @@ const Client = {
     );
   },
 
-  async getFile(filePath) {
-    // Only serve (and auto-extract into) the client resource folders: resolve the path and refuse anything that
-    // leaves them (e.g. URL-encoded ../ segments), which used to allow reading or writing any file in the container.
+  // Resolve a request path inside the client resource folders, or null if it leaves them (e.g. URL-encoded
+  // ../ segments, which used to allow reading or writing any file in the container).
+  resolveResource(filePath) {
     const appRoot = path.resolve(__dirname, '..', '..');
     const localPath = path.resolve(appRoot, filePath);
     const rel = path.relative(appRoot, localPath);
     if (!rel || rel.startsWith('..') || path.isAbsolute(rel) || !RESOURCE_DIRS.includes(rel.split(path.sep)[0])) {
       return null;
     }
-    // Converter barras para barras invertidas
-    const grfFilePath = rel.split(path.sep).join('\\');
+    return { localPath, grfPath: rel.split(path.sep).join('\\') };
+  },
 
-    // Verificar se o arquivo já existe na pasta de dados
-    if (fs.existsSync(localPath)) {
-      return fs.readFileSync(localPath);
+  async getFile(filePath) {
+    // Korean names may arrive as real Korean (data/texture/유저인터페이스/...) or the way roBrowser sends them:
+    // CP949 bytes read as Latin-1 (data/texture/À¯ÀúÀÎÅÍÆäÀÌ½º/...). The GRF index holds real Korean (grf-loader
+    // decodes names as CP949), so look up the Korean form first and fall back to the path as requested.
+    const korean = normalizeEncodingPath(filePath);
+    const candidates = [korean, filePath].filter((p, i, all) => all.indexOf(p) === i).map(p => this.resolveResource(p));
+    if (candidates.includes(null)) {
+      return null;
     }
 
-    // Buscar o arquivo nos GRFs
+    // Already extracted to the data folder?
+    for (const { localPath } of candidates) {
+      if (fs.existsSync(localPath)) {
+        return fs.readFileSync(localPath);
+      }
+    }
+
+    // Search the GRFs; auto-extract under the Korean name.
     for (const grf of this.grfs) {
-      if (grf && grf.getFile) {
-        const fileContent = await grf.getFile(grfFilePath);
+      for (const { grfPath } of candidates) {
+        const fileContent = await grf.getFile(grfPath);
         if (fileContent) {
-          // Salvar o arquivo na pasta de dados se AutoExtract estiver habilitado
           if (this.AutoExtract) {
-            const extractDir = path.dirname(localPath);
-            if (!fs.existsSync(extractDir)) {
-              fs.mkdirSync(extractDir, { recursive: true });
-            }
+            const localPath = candidates[0].localPath;
+            fs.mkdirSync(path.dirname(localPath), { recursive: true });
             fs.writeFileSync(localPath, fileContent);
           }
           return fileContent;
         }
-      } else {
-        console.error('GRF not loaded or getFile method missing');
       }
     }
 
