@@ -39,6 +39,23 @@ router.get('/list-files', async (req, res) => {
   res.json(Client.listFiles());
 });
 
+// A language's files: /lang/<code>/<path> is the language pack's file at <path> when the pack has it (the client's
+// text tables), otherwise the same file as /<path>. The web client asks for everything under its language's prefix.
+router.get('/lang/:code/*', async (req, res) => {
+  const filePath = req.params[0];
+  try {
+    const fileContent = Client.getLangFile(req.params.code, filePath) || (await Client.getFile(filePath));
+    if (!fileContent) {
+      return res.status(404).send('File not found');
+    }
+    res.type(path.extname(filePath));
+    res.send(fileContent);
+  } catch (err) {
+    console.error('Error serving', req.params.code, filePath, err);
+    res.status(500).send('Error reading file');
+  }
+});
+
 router.get('/*', async (req, res) => {
   const filePath = req.params[0];
   try {

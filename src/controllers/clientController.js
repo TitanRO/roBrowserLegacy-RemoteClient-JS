@@ -4,6 +4,9 @@ const Grf = require('./grfController');
 const configs = require('../config/configs');
 const iconv = require('iconv-lite');
 
+// Language codes of the packs under <app>/lang/ (TitanRO account-service's language codes, e.g. qps, pt-BR).
+const LANG_CODE = /^[A-Za-z0-9-]{2,16}$/;
+
 // Folders a client may request files from (the volume-mounted client resources).
 const RESOURCE_DIRS = ['data', 'BGM', 'System', 'AI', 'resources'];
 
@@ -86,6 +89,31 @@ const Client = {
       }
     }
 
+    return null;
+  },
+
+  // A language pack's file (TitanRO/client patch/lang-packs.sh, copied to <app>/lang/<code>/ by the client-sync job),
+  // or null when the pack doesn't replace that file. The pack holds the client's text files at their own paths.
+  getLangFile(code, filePath) {
+    if (!LANG_CODE.test(code)) {
+      return null;
+    }
+    const langRoot = path.resolve(__dirname, '..', '..', 'lang', code);
+    const candidates = [toKorean(filePath), filePath].filter((p, i, all) => all.indexOf(p) === i);
+    for (const candidate of candidates) {
+      const localPath = path.resolve(langRoot, candidate);
+      const rel = path.relative(langRoot, localPath);
+      if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) {
+        return null;
+      }
+      if (isFile(localPath)) {
+        return fs.readFileSync(localPath);
+      }
+      const found = findCaseInsensitive(localPath);
+      if (found) {
+        return fs.readFileSync(found);
+      }
+    }
     return null;
   },
 
