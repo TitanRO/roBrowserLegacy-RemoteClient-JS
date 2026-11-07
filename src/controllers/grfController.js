@@ -1,6 +1,25 @@
 const { GrfNode } = require("@chicowall/grf-loader");
 const fs = require("fs");
 
+// kRO's 2025 data.grf (version 0x300) starts with "Event Horizon" where older GRFs have "Master of Magic"; the rest
+// of its header is the 0x300 layout grf-loader reads. grf-loader only accepts "Master of Magic", so its header read
+// gets that signature instead.
+const MAGIC = Buffer.from("Master of Magic");
+const EVENT_HORIZON = Buffer.from("Event Horizon\0");
+
+function acceptEventHorizon(grf) {
+	const read = grf.getStreamBuffer.bind(grf);
+	grf.getStreamBuffer = async (fd, offset, length) => {
+		const buffer = await read(fd, offset, length);
+		if (offset === 0 && buffer.length >= MAGIC.length && Buffer.from(buffer.buffer, buffer.byteOffset, EVENT_HORIZON.length).equals(EVENT_HORIZON)) {
+			const copy = Buffer.from(buffer);
+			MAGIC.copy(copy, 0);
+			return copy;
+		}
+		return buffer;
+	};
+}
+
 class Grf {
 	constructor(filePath) {
 		this.filePath = filePath;
@@ -17,6 +36,7 @@ class Grf {
 		try {
 			const fd = fs.openSync(this.filePath, "r");
 			this.grf = new GrfNode(fd);
+			acceptEventHorizon(this.grf);
 			await this.grf.load();
 			this.loaded = true;
 		} catch (error) {
