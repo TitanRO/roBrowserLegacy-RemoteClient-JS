@@ -8,7 +8,8 @@ const iconv = require('iconv-lite');
 const LANG_CODE = /^[A-Za-z0-9-]{2,16}$/;
 
 // Folders a client may request files from (the volume-mounted client resources).
-const RESOURCE_DIRS = ['data', 'BGM', 'System', 'AI', 'resources'];
+// SystemEN: the client's English lua tables (ROenglishRE's itemInfo.lua and friends), which the client-sync job copies.
+const RESOURCE_DIRS = ['data', 'BGM', 'System', 'SystemEN', 'AI', 'resources'];
 
 const Client = {
   path: '',
